@@ -1,0 +1,152 @@
+import gradio as gr
+from tkinter import *
+import threading
+import os
+import signal
+from PIL import Image, ImageTk
+
+# Global variable to hold the server process ID
+server_pid = None
+
+# List of image paths to cycle through (use absolute paths)
+image_paths = [
+    "C:\\Users\\Sweeto\\OneDrive\\Desktop\\python\\rob1.jpg",
+    "C:\\Users\\Sweeto\\OneDrive\\Desktop\\python\\robo.jpg"
+]
+
+# Index to keep track of the current image
+current_image_index = 0
+
+# Define a simple rule-based function for the chatbot
+def chatbot_response(user_message):
+    user_message = user_message.lower()  # Convert the message to lowercase for easier matching
+
+    # Define a dictionary of responses based on keywords
+    responses = {
+        "hello": "Hello! How can I assist you today?",
+        "your name": "I'm Sweeto, your friendly chatbot!",
+        "suggest some places to visit in kerala": "Thrissur, Wayanad",
+        
+        # Questions about project creators
+        "who were the creators of this project": "It was created by Sweeto, Athul, Ashwin, and Indralal, all of whom are students at Sahrdaya College of Engineering and Technology in Kodakara, Thrissur, Kerala.",
+        "can you tell me who worked on this project": "It was developed by Sweeto, Athul, Ashwin, and Indralal, who are enrolled at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who is responsible for this project": "The project was created by Sweeto, Athul, Ashwin, and Indralal, all students at Sahrdaya College of Engineering and Technology in Kodakara, Thrissur, Kerala.",
+        "who are the people behind this project": "The project was developed by Sweeto, Athul, Ashwin, and Indralal, who are currently studying at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who made this project": "Sweeto, Athul, Ashwin, and Indralal were responsible for creating this project. They are students at Sahrdaya College of Engineering and Technology in Kodakara, Thrissur, Kerala.",
+        "who created this project": "The project was created by Sweeto, Athul, Ashwin, and Indralal, who are students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who contributed to the development of this project": "The contributors are Sweeto, Athul, Ashwin, and Indralal, who are enrolled at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who was involved in making this project": "Sweeto, Athul, Ashwin, and Indralal, all students from Sahrdaya College of Engineering and Technology in Kodakara, Thrissur, Kerala, were involved in this project.",
+        "could you provide details on the project developers": "The project was developed by Sweeto, Athul, Ashwin, and Indralal, who are currently students at Sahrdaya College of Engineering and Technology in Kodakara, Thrissur, Kerala.",
+        "who are the authors of this project": "Sweeto, Athul, Ashwin, and Indralal, from Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala, created this project.",
+        "can you list the names of the project creators": "The project was created by Sweeto, Athul, Ashwin, and Indralal, all of whom are students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "people responsible for this project": "The individuals responsible for this project are Sweeto, Athul, Ashwin, and Indralal, who are students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "name of people who made this": "The names of the people who made this project are Sweeto, Athul, Ashwin, and Indralal, all from Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who are the team members of this project": "The team members of this project are Sweeto, Athul, Ashwin, and Indralal, who are students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who is behind this project": "The project was created by Sweeto, Athul, Ashwin, and Indralal, who are enrolled at Sahrdaya College of Engineering and Technology in Kodakara, Thrissur, Kerala.",
+        "who are the developers of this project": "The developers of this project are Sweeto, Athul, Ashwin, and Indralal, from Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who worked on the development of this project": "The development of this project was handled by Sweeto, Athul, Ashwin, and Indralal, who are students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "can you tell me who the project contributors are": "The project contributors are Sweeto, Athul, Ashwin, and Indralal, who are currently studying at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "give me the names of the people who worked on this project": "The names of the people who worked on this project are Sweeto, Athul, Ashwin, and Indralal, all of whom are students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who are the creators of this project": "The creators of this project are Sweeto, Athul, Ashwin, and Indralal, all of whom are from Sahrdaya College of Engineering and Technology in Kodakara, Thrissur, Kerala.",
+        "who are the people who worked on this project": "The people who worked on this project are Sweeto, Athul, Ashwin, and Indralal, who are enrolled at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who made this": "The project was made by Sweeto, Athul, Ashwin, and Indralal, all students of Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who are the project authors": "The authors of this project are Sweeto, Athul, Ashwin, and Indralal, who are students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who are the creators": "The creators of this project are Sweeto, Athul, Ashwin, and Indralal, all of whom are from Sahrdaya College of Engineering and Technology in Kodakara, Thrissur, Kerala.",
+        "who created this": "The project was created by Sweeto, Athul, Ashwin, and Indralal, who are students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who are the developers": "The developers are Sweeto, Athul, Ashwin, and Indralal, who are currently students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who worked on this": "The people who worked on this project are Sweeto, Athul, Ashwin, and Indralal, who are from Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who contributed to this project": "The contributors to this project are Sweeto, Athul, Ashwin, and Indralal, students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who is responsible for the development": "The development was handled by Sweeto, Athul, Ashwin, and Indralal, who are students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who are the people who contributed": "The people who contributed to this project are Sweeto, Athul, Ashwin, and Indralal, enrolled at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who are the individuals behind this project": "The individuals behind this project are Sweeto, Athul, Ashwin, and Indralal, who are students at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who worked on the project": "The project was worked on by Sweeto, Athul, Ashwin, and Indralal, who are enrolled at Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "who did this project": "The project was done by Sweeto, Athul, Ashwin, and Indralal, students from Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        "can you tell me the names of the developers": "The developers of this project are Sweeto, Athul, Ashwin, and Indralal, all of whom are from Sahrdaya College of Engineering and Technology, Kodakara, Thrissur, Kerala.",
+        
+        "bye": "Goodbye! Have a great day!"
+    }
+
+    # Check if any of the keywords are present in the user's message
+    for keyword, response in responses.items():
+        if keyword in user_message:  # This allows partial matching of the phrases
+            return response
+
+    # Default response if no keywords match
+    return "I'm sorry, I don't understand that. Can you ask something else?"
+
+# Set up the Gradio interface
+demo = gr.Interface(
+    fn=chatbot_response,
+    inputs="text",
+    outputs="text",
+    examples=["Hello", "How are you?", "What is your name?", "Bye"],
+    title="Simple Chatbot",
+    description="A simple rule-based chatbot built with Gradio."
+)
+
+# Function to start the Gradio interface
+def start_gradio():
+    global server_pid
+    server_pid = os.getpid()
+    demo.launch(share=False, debug=True, inbrowser=True)  # Opens the Gradio interface in the default browser
+
+# Function to run Gradio in a separate thread so it doesn't block the Tkinter GUI
+def run_gradio():
+    threading.Thread(target=start_gradio).start()
+
+# Function to close the Gradio server
+def close_gradio():
+    if server_pid:
+        os.kill(server_pid, signal.SIGTERM)
+        print("Gradio server has been terminated.")
+
+# Function to update the background image
+def update_background():
+    global current_image_index
+
+    # Load the next image
+    image_path = image_paths[current_image_index]
+    
+    try:
+        background_image = Image.open(image_path)
+    except FileNotFoundError:
+        print(f"Error: The file {image_path} was not found.")
+        return
+    
+    background_image = background_image.resize((new_width, new_height), Image.LANCZOS)
+    background_photo = ImageTk.PhotoImage(background_image)
+
+    # Update the canvas with the new image
+    canvas.create_image(0, 0, image=background_photo, anchor="nw")
+    canvas.image = background_photo  # Keep a reference to avoid garbage collection
+
+    # Update index and schedule the next update
+    current_image_index = (current_image_index + 1) % len(image_paths)
+    print(f"Updated background to image {current_image_index}")  # Debug statement
+    window.after(3000, update_background)  # Schedule the next update in 3 seconds
+
+# Create the Tkinter window
+window = Tk()
+window.title("Open Chatbot")
+
+# Set initial dimensions (make sure they match the image size)
+new_width = 1600
+new_height = 1000
+
+# Create a canvas to hold the background image
+canvas = Canvas(window, width=new_width, height=new_height)
+canvas.pack(fill="both", expand=True)
+
+# Initialize background image update
+update_background()
+
+# Create the buttons and place them on the canvas
+open_button = Button(window, text='Open Chatbot', command=run_gradio, width=20)
+close_button = Button(window, text='Close Chatbot', command=close_gradio, width=20)
+
+# Add the buttons to the canvas
+canvas.create_window(new_width // 2, new_height // 2 - 20, window=open_button)
+canvas.create_window(new_width // 2, new_height // 2 + 20, window=close_button)
+
+# Run the Tkinter event loop
+window.mainloop()
